@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
 /**
- * @title OriginTokenMint - v4.6
+ * @title OriginTokenMint - v4.7
  * @author Mabble Protocol (@muroko)
  * @notice OTM is a multi-chain token
  * @dev A custom ERC-20 token with EIP-2612 permit functionality.
@@ -37,6 +37,8 @@ contract OriginTokenMint is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessCon
     uint256 public constant MAX_SUPPLY = 100_000_000 * 10**_DECIMALS;
 
     // --- Events ---
+    //event PoolPairWhitelisted(address indexed poolPair, bool isWhitelisted);
+    event PoolWhitelisted(address indexed pool, bool isWhitelisted);
     event TradingStatusUpdated(bool indexed liveTrading);
     event TradingStatusQueued(bool indexed newStatus, uint256 timestamp);
     event TradingStatusChangeCanceled();
@@ -52,6 +54,8 @@ contract OriginTokenMint is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessCon
     // --- Storage ---
     mapping(address => bool) private _recoverableTokens;
     mapping(address => bool) private _pendingAdmins;
+    //mapping(address => bool) private _whitelistedPoolPairs;
+    mapping(address => bool) private _whitelistedPools;
     struct QueuedStatusChange {
         bool newStatus;
         uint256 timestamp;
@@ -91,12 +95,35 @@ contract OriginTokenMint is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessCon
         address to,
         uint256 value
     ) internal virtual override(ERC20, ERC20Capped) {
-        _checkTradeableStatus();
+        _checkTradeableStatus();  // Check trading status before transfer
+        bool isToPool = _whitelistedPools[to];
+        // Block transfers TO admins when trading is disabled
+        bool isToAdmin = _isAdmin(to);
+        bool isFromAdmin = _isAdmin(from);
+        require(from != address(0), "QST: transfer from the zero address");
+        require(to != address(0), "QST: transfer to the zero address");
         require(!_paused, "Paused"); // Add to _transfer
+        // Allow transfers if:
+        // 1. Trading is live, OR
+        // 2. Transfer is from an admin (admins can always send), OR
+        // 3. Transfer is to a whitelisted pool (buying) and not to an admin
         require(
-            liveTrading || hasRole(ADMIN_ROLE, from) || hasRole(ADMIN_ROLE, to),
+            liveTrading ||
+            isFromAdmin,    // Admins can always send tokens
             "QST: transfer is disabled"
         );
+        // Additional check: Block transfers TO admins if trading is disabled
+        require(
+            liveTrading || !isToAdmin,
+            "QST: cannot transfer to admin while trading is disabled"
+        );
+        // Allow buying (to pool) ONLY if trading is disabled
+        require(
+            liveTrading ||
+            (!liveTrading && isToPool),
+            "QST: transfer is disabled"
+        );
+        // Use ERC20's _transfer to handle balances (avoids direct state manipulation)
         super._update(from, to, value);  // ✅ ERC20 handles balances
     }
 
@@ -189,6 +216,35 @@ contract OriginTokenMint is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessCon
         _grantRole(ADMIN_ROLE, msg.sender);
         delete _pendingAdmins[msg.sender];
         emit AdminGranted(msg.sender);
+    }
+
+    /// @dev Checks if an address has the ADMIN_ROLE.
+    /// @param account The address to check.
+    /// @return Whether the address has the ADMIN_ROLE.
+    function _isAdmin(address account) internal view returns (bool) {
+        return hasRole(ADMIN_ROLE, account);
+    }
+
+    /// @dev Admin whitelists/delists a trading pool pair.
+    /// @param poolPair Address of the pool contract (e.g., Uniswap pair).
+    /// @param isWhitelisted True to whitelist, false to remove.
+    /*function setWhitelistedPoolPair(address poolPair, bool isWhitelisted) external onlyRole(ADMIN_ROLE) nonReentrant {
+        _whitelistedPoolPairs[poolPair] = isWhitelisted;
+        emit PoolPairWhitelisted(poolPair, isWhitelisted);
+    }*/
+
+    /// @dev Admin whitelists/delists a trading pool pair.
+    /// @param pool Address of the pool contract (e.g., Uniswap pair).
+    /// @param isWhitelisted True to whitelist, false to remove.
+    // Add function to manage whitelisted pools
+    function setWhitelistedPool(address pool, bool isWhitelisted) external onlyRole(ADMIN_ROLE) nonReentrant {
+        _whitelistedPools[pool] = isWhitelisted;
+        emit PoolWhitelisted(pool, isWhitelisted);
+    }
+
+    // Add helper function to check whitelisted pools
+    function _isWhitelistedPool(address pool) internal view returns (bool) {
+        return _whitelistedPools[pool];
     }
 
     /// @dev Supports EIP-165 interface detection.
