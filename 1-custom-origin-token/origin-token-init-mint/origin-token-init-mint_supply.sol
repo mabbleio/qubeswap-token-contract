@@ -1,0 +1,203 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Capped.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
+import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
+
+/**
+ * @title OriginTokenMint - v4.6
+ * @author Mabble Protocol (@muroko)
+ * @notice OTM is a multi-chain token
+ * @dev A custom ERC-20 token with EIP-2612 permit functionality.
+ * This token contract provides a secure, feature-rich ERC-20 implementation with 
+ * governance controls, trading status management, token recovery mechanisms, and 
+ * gasless approvals.
+ * @custom:security-contact security@mabble.io
+ * Website: mabble.io
+ */
+contract OriginTokenMint is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessControl {
+    using Address for address;
+    using Address for address payable;
+    using SafeERC20 for IERC20;
+
+    // --- Roles ---
+    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+    bytes32 public constant RECOVERER_ROLE = keccak256("RECOVERER_ROLE");
+
+    // --- Constants ---
+    string private constant _NAME = "OriginTokenMint";
+    string private constant _SYMBOL = "OTM";
+    uint8 private constant _DECIMALS = 18;
+    uint256 public constant MAX_SUPPLY = 100_000_000 * 10**_DECIMALS;
+
+    // --- Events ---
+    event TradingStatusUpdated(bool indexed liveTrading);
+    event TradingStatusQueued(bool indexed newStatus, uint256 timestamp);
+    event TradingStatusChangeCanceled();
+    event RecoverableTokenUpdated(address indexed token, bool allowed);
+    event TokenRecovered(address indexed token, address indexed recipient, uint256 amount);
+    event NativeTokenRecovered(address indexed recipient, uint256 amount);
+    event Mint(address indexed to, uint256 amount);
+    event AdminGranted(address indexed account);
+    event AdminNominated(address indexed account);
+    event AdminRenounced(address indexed admin);
+    event Paused(bool isPaused);
+
+    // --- Storage ---
+    mapping(address => bool) private _recoverableTokens;
+    mapping(address => bool) private _pendingAdmins;
+    struct QueuedStatusChange {
+        bool newStatus;
+        uint256 timestamp;
+    }
+
+    uint256 public constant TIMELOCK_DURATION = 0.5 hours; // trading toggle delay: 24-hour
+    QueuedStatusChange private _tradeableStatusChange;
+    bool public liveTrading = true; // Default: trading enabled
+    bool private _paused;
+
+    // --- Constructor ---
+    constructor() ERC20(_NAME, _SYMBOL) ERC20Permit(_NAME) ERC20Capped(MAX_SUPPLY) {
+        _grantRole(ADMIN_ROLE, msg.sender);
+        _grantRole(RECOVERER_ROLE, msg.sender);
+        _useNonce(msg.sender); // Initialize nonce for permit
+
+        // Initial mint (e.g., 50M tokens to deployer)
+        uint256 initialMint = 50_000_000 * 10**_DECIMALS;
+        require(initialMint <= MAX_SUPPLY, "Initial mint exceeds cap");
+        _mint(msg.sender, initialMint);
+        emit Mint(msg.sender, initialMint);  // Optional: Custom event for clarity
+    }
+
+    modifier whenNotPaused() {
+        require(!_paused, "Paused");
+        _;
+    }
+
+    function setPaused(bool paused) external onlyRole(ADMIN_ROLE) nonReentrant {
+        _paused = paused;
+        emit Paused(paused);
+    }
+
+    // --- Override Internal Functions ---
+    function _update(
+        address from,
+        address to,
+        uint256 value
+    ) internal virtual override(ERC20, ERC20Capped) {
+        _checkTradeableStatus();
+        require(!_paused, "Paused"); // Add to _transfer
+        require(
+            liveTrading || hasRole(ADMIN_ROLE, from) || hasRole(ADMIN_ROLE, to),
+            "QST: transfer is disabled"
+        );
+        super._update(from, to, value);  // ✅ ERC20 handles balances
+    }
+
+    function safeMint(address to, uint256 amount) external onlyRole(ADMIN_ROLE) { // Removed nonReentrant
+        require(totalSupply() + amount <= cap(), "Mint exceeds cap");
+        require(to != address(0), "Cannot mint to zero address");
+        _mint(to, amount);
+        emit Mint(to, amount);
+    }
+
+    // --- Trading Control ---
+    /// @notice Queues a change to trading status (enabled/disabled).
+    /// @dev Emits `TradingStatusQueued`. Change takes effect after `TIMELOCK_DURATION`.
+    /// @param _status Desired trading status (true = enabled, false = disabled).
+    function setTradeable(bool _status) external onlyRole(ADMIN_ROLE) nonReentrant {
+        require(_tradeableStatusChange.timestamp == 0 || block.timestamp > _tradeableStatusChange.timestamp, "Change already queued or pending");
+        _tradeableStatusChange = QueuedStatusChange({
+            newStatus: _status,
+            timestamp: block.timestamp + TIMELOCK_DURATION
+        });
+        emit TradingStatusQueued(_status, _tradeableStatusChange.timestamp);
+    }
+
+    /// @dev Checks and applies queued trading status changes.
+    function _checkTradeableStatus() internal {
+        uint256 currentTime = block.timestamp;  // Cache
+        if (_tradeableStatusChange.timestamp != 0 && currentTime >= _tradeableStatusChange.timestamp) {
+            bool newStatus = _tradeableStatusChange.newStatus;
+            if (liveTrading != newStatus) {
+                liveTrading = newStatus;
+                emit TradingStatusUpdated(newStatus);
+            }
+            _tradeableStatusChange.timestamp = 0;
+        }
+    }
+
+    function getTradeableStatusChange() public view returns (bool, uint256) {
+        return (_tradeableStatusChange.newStatus, _tradeableStatusChange.timestamp);
+    }
+
+    function cancelTradeableStatusChange() external onlyRole(ADMIN_ROLE) nonReentrant {
+        require(_tradeableStatusChange.timestamp != 0, "No change queued");
+        _tradeableStatusChange.timestamp = 0;
+        emit TradingStatusChangeCanceled(); // Emit cancellation
+    }
+
+    // --- Token Recovery ---
+    /// @dev Admin/Recoverer can whitelist tokens for recovery.
+    function setRecoverableToken(address token, bool allowed) external onlyRole(ADMIN_ROLE) {
+        _recoverableTokens[token] = allowed;
+        emit RecoverableTokenUpdated(token, allowed);
+    }
+
+    /// @dev Recoverer can rescue stuck ERC20 tokens.
+    function recoverToken(
+        address token,
+        address recipient,
+        uint256 amount
+    ) external onlyRole(RECOVERER_ROLE) nonReentrant {
+        require(_recoverableTokens[token], "Token not recoverable");
+        IERC20(token).safeTransfer(recipient, amount); // Safe transfer with revert on failure
+        emit TokenRecovered(token, recipient, amount);
+    }
+
+    /// @dev Recoverer can rescue stuck native tokens (e.g., ETH).
+    function recoverNativeToken(address payable recipient, uint256 amount) external onlyRole(RECOVERER_ROLE) nonReentrant {
+        (bool success, ) = recipient.call{value: amount}("");
+        require(success, "Transfer failed");
+        emit NativeTokenRecovered(recipient, amount);
+    }
+
+    // Grant admin role (restricted to owner)
+    function grantAdmin(address account) external onlyRole(ADMIN_ROLE) nonReentrant {
+        _grantRole(ADMIN_ROLE, account);
+        emit AdminGranted(account);
+    }
+
+    function renounceAdmin() external onlyRole(ADMIN_ROLE) nonReentrant {
+        _revokeRole(ADMIN_ROLE, msg.sender);
+        emit AdminRenounced(msg.sender);
+    }
+
+    function nominateAdmin(address account) external onlyRole(ADMIN_ROLE) nonReentrant {
+        _pendingAdmins[account] = true;
+        emit AdminNominated(account);
+    }
+
+    function acceptAdmin() external nonReentrant {
+        require(_pendingAdmins[msg.sender], "Not nominated");
+        _grantRole(ADMIN_ROLE, msg.sender);
+        delete _pendingAdmins[msg.sender];
+        emit AdminGranted(msg.sender);
+    }
+
+    /// @dev Supports EIP-165 interface detection.
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return
+            interfaceId == type(IERC165).interfaceId ||  // ERC-165
+            interfaceId == type(IERC20).interfaceId ||   // ERC-20
+            interfaceId == type(IERC20Metadata).interfaceId ||  // ERC-20 Metadata
+            interfaceId == type(IERC20Permit).interfaceId ||  // ERC-20 Permit
+            super.supportsInterface(interfaceId);  // AccessControl (ERC-165)
+    }   
+}
