@@ -10,7 +10,18 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
-contract QubeSwapToken is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessControl {
+/**
+ * @title OriginTokenMint - v5.0
+ * @author Mabble Protocol (@muroko)
+ * @notice OTM is a multi-chain token
+ * @dev A custom ERC-20 token with EIP-2612 permit functionality.
+ * This token contract provides a secure, feature-rich ERC-20 implementation with 
+ * governance controls, trading status management, token recovery mechanisms, and 
+ * gasless approvals.
+ * @custom:security-contact security@mabble.io
+ * Website: mabble.io
+ */
+contract OriginTokenMint is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessControl {
     using Address for address;
     using Address for address payable;
     using SafeERC20 for IERC20;
@@ -20,36 +31,47 @@ contract QubeSwapToken is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessContr
     bytes32 public constant RECOVERER_ROLE = keccak256("RECOVERER_ROLE");
 
     // --- Constants ---
-    string private constant _NAME = "QubeSwapToken";
-    string private constant _SYMBOL = "QST";
+    string private constant _NAME = "OriginTokenMint";
+    string private constant _SYMBOL = "OTM";
     uint8 private constant _DECIMALS = 18;
     uint256 public constant MAX_SUPPLY = 100_000_000 * 10**_DECIMALS;
 
     // --- Events ---
+    //event PoolPairWhitelisted(address indexed poolPair, bool isWhitelisted);
+    event PoolWhitelisted(address indexed pool, bool isWhitelisted);
     event TradingStatusUpdated(bool indexed liveTrading);
     event TradingStatusQueued(bool indexed newStatus, uint256 timestamp);
+    event TradingStatusChangeCanceled();
     event RecoverableTokenUpdated(address indexed token, bool allowed);
     event TokenRecovered(address indexed token, address indexed recipient, uint256 amount);
     event NativeTokenRecovered(address indexed recipient, uint256 amount);
     event Mint(address indexed to, uint256 amount);
     event AdminGranted(address indexed account);
+    event AdminNominated(address indexed account);
+    event AdminRenounced(address indexed admin);
+    event Paused(bool isPaused);
 
     // --- Storage ---
+    mapping(address => bool) private _recoverableTokens;
+    mapping(address => bool) private _pendingAdmins;
+    //mapping(address => bool) private _whitelistedPoolPairs;
+    mapping(address => bool) private _whitelistedPools;
     struct QueuedStatusChange {
         bool newStatus;
         uint256 timestamp;
     }
 
-    uint256 public constant TIMELOCK_DURATION = 1 hours; // trading toggle delay: 24-hour
+    uint256 public constant TIMELOCK_DURATION = 0.5 hours; // trading toggle delay: 24-hour
     QueuedStatusChange private _tradeableStatusChange;
-    mapping(address => bool) private _recoverableTokens;
     bool public liveTrading = true; // Default: trading enabled
+    bool private _paused;
 
     // --- Constructor ---
     constructor() ERC20(_NAME, _SYMBOL) ERC20Permit(_NAME) ERC20Capped(MAX_SUPPLY) {
         _grantRole(ADMIN_ROLE, msg.sender);
         _grantRole(RECOVERER_ROLE, msg.sender);
         _useNonce(msg.sender); // Initialize nonce for permit
+
         uint256 amount;
         // Fixed Cap Supply Mint
         uint256 capMint = MAX_SUPPLY;
@@ -58,20 +80,59 @@ contract QubeSwapToken is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessContr
         emit Mint(msg.sender, capMint);  // Optional: Custom event for clarity
     }
 
-    // Override _update to resolve the conflict (forward to ERC20Capped)
+    modifier whenNotPaused() {
+        require(!_paused, "This Contract is Paused");
+        _;
+    }
+
+    function setPaused(bool paused) external onlyRole(ADMIN_ROLE) nonReentrant {
+        _paused = paused;
+        emit Paused(paused);
+    }
+
+    // --- Override Internal Functions ---
     function _update(
         address from,
         address to,
         uint256 value
     ) internal virtual override(ERC20, ERC20Capped) {
-        super._update(from, to, value);
-    }
+        _checkTradeableStatus();  // Check trading status before transfer
+		
+        bool isFromPool = _whitelistedPools[from];
+		bool isToPool = _whitelistedPools[to];
+		
+		require(!_paused, "This Contract is Paused"); // Add to _transfer
+		
+        // Allow transfers if:
+		// 1. Trading is live, OR
+		// 2. Transfer is from/to an admin, OR
+		// 3. Transfer is FROM a whitelisted pool (buying), OR
+		// 4. Transfer is TO a whitelisted pool (but block selling)
+		require(
+			liveTrading ||
+			hasRole(ADMIN_ROLE, from) ||
+			hasRole(ADMIN_ROLE, to) ||
+			isFromPool,  // ✅ Allow buying (from pool to user)
+			"QST: transfer/trading is disabled until launch!"
+		);
+		
+        // Block transfers TO whitelisted pools if not from a pool 
+		// (prevent selling) if liveTrading is false
+		require(
+			liveTrading || !isToPool || isFromPool,
+			"QST: Selling disabled until launch!"
+		);
+		
+        // Use ERC20's _transfer to handle balances (avoids direct state manipulation)
+        super._update(from, to, value);  // ✅ ERC20 handles balances
+	}
 
     // --- Trading Control ---
-    /// @dev Admin can queue a change to trading status (enabled/disabled).
-    /// @param _status Desired status (true = enabled, false = disabled).
+    /// @notice Queues a change to trading status (enabled/disabled).
+    /// @dev Emits `TradingStatusQueued`. Change takes effect after `TIMELOCK_DURATION`.
+    /// @param _status Desired trading status (true = enabled, false = disabled).
     function setTradeable(bool _status) external onlyRole(ADMIN_ROLE) nonReentrant {
-        require(_tradeableStatusChange.timestamp == 0, "Change already queued");
+        require(_tradeableStatusChange.timestamp == 0 || block.timestamp > _tradeableStatusChange.timestamp, "Change already queued or pending");
         _tradeableStatusChange = QueuedStatusChange({
             newStatus: _status,
             timestamp: block.timestamp + TIMELOCK_DURATION
@@ -99,7 +160,7 @@ contract QubeSwapToken is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessContr
     function cancelTradeableStatusChange() external onlyRole(ADMIN_ROLE) nonReentrant {
         require(_tradeableStatusChange.timestamp != 0, "No change queued");
         _tradeableStatusChange.timestamp = 0;
-        emit TradingStatusQueued(false, 0);  // Emit cancellation
+        emit TradingStatusChangeCanceled(); // Emit cancellation
     }
 
     // --- Token Recovery ---
@@ -124,31 +185,59 @@ contract QubeSwapToken is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessContr
     function recoverNativeToken(address payable recipient, uint256 amount) external onlyRole(RECOVERER_ROLE) nonReentrant {
         (bool success, ) = recipient.call{value: amount}("");
         require(success, "Transfer failed");
-        require(recipient != address(0), "Cannot recover to zero address");
         emit NativeTokenRecovered(recipient, amount);
-    }
-
-    // --- Overrides ---
-    /// @dev Hook for ERC20 transfers. Enforces trading status.
-    function _beforeTokenTransfer(
-        address from,
-        address to
-    ) internal virtual {
-        _checkTradeableStatus();  // Apply queued changes
-        require(
-            liveTrading ||
-            from == address(0) ||  // Allow minting
-            to == address(0) ||    // Allow burning
-            hasRole(ADMIN_ROLE, from) ||  // Allow admin sends
-            hasRole(ADMIN_ROLE, to),       // Allow admin receives
-            "Trading disabled"
-        );
     }
 
     // Grant admin role (restricted to owner)
     function grantAdmin(address account) external onlyRole(ADMIN_ROLE) nonReentrant {
         _grantRole(ADMIN_ROLE, account);
         emit AdminGranted(account);
+    }
+
+    function renounceAdmin() external onlyRole(ADMIN_ROLE) nonReentrant {
+        _revokeRole(ADMIN_ROLE, msg.sender);
+        emit AdminRenounced(msg.sender);
+    }
+
+    function nominateAdmin(address account) external onlyRole(ADMIN_ROLE) nonReentrant {
+        _pendingAdmins[account] = true;
+        emit AdminNominated(account);
+    }
+
+    function acceptAdmin() external nonReentrant {
+        require(_pendingAdmins[msg.sender], "Not nominated");
+        _grantRole(ADMIN_ROLE, msg.sender);
+        delete _pendingAdmins[msg.sender];
+        emit AdminGranted(msg.sender);
+    }
+
+    /// @dev Checks if an address has the ADMIN_ROLE.
+    /// @param account The address to check.
+    /// @return Whether the address has the ADMIN_ROLE.
+    /*function _isAdmin(address account) internal view returns (bool) {
+        return hasRole(ADMIN_ROLE, account);
+    }*/
+
+    /// @dev Admin whitelists/delists a trading pool pair.
+    /// @param poolPair Address of the pool contract (e.g., Uniswap pair).
+    /// @param isWhitelisted True to whitelist, false to remove.
+    /*function setWhitelistedPoolPair(address poolPair, bool isWhitelisted) external onlyRole(ADMIN_ROLE) nonReentrant {
+        _whitelistedPoolPairs[poolPair] = isWhitelisted;
+        emit PoolPairWhitelisted(poolPair, isWhitelisted);
+    }*/
+
+    /// @dev Admin whitelists/delists a trading pool pair.
+    /// @param pool Address of the pool contract (e.g., Uniswap pair).
+    /// @param isWhitelisted True to whitelist, false to remove.
+    // Add function to manage whitelisted pools
+    function setWhitelistedPool(address pool, bool isWhitelisted) external onlyRole(ADMIN_ROLE) nonReentrant {
+        _whitelistedPools[pool] = isWhitelisted;
+        emit PoolWhitelisted(pool, isWhitelisted);
+    }
+
+    // Add helper function to check whitelisted pools
+    function _isWhitelistedPool(address pool) internal view returns (bool) {
+        return _whitelistedPools[pool];
     }
 
     /// @dev Supports EIP-165 interface detection.
