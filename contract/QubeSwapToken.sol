@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
 /**
- * @title QubeSwapToken - v5.0
+ * @title QubeSwapToken - v5.5
  * @author Mabble Protocol (@muroko)
  * @notice QST is a multi-chain token
  * @dev A custom ERC-20 token with EIP-2612 permit functionality.
@@ -21,7 +21,7 @@ import "@openzeppelin/contracts/utils/Address.sol";
  * @custom:security-contact security@mabble.io
  * Website: qubeswap.com
  */
-contract MyProjectTokenFixed is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessControl {
+contract QubeSwapToken is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessControl {
     using Address for address;
     using Address for address payable;
     using SafeERC20 for IERC20;
@@ -38,6 +38,7 @@ contract MyProjectTokenFixed is ERC20Capped, ERC20Permit, ReentrancyGuard, Acces
 
     // --- Events ---
     event PoolWhitelisted(address indexed pool, bool isWhitelisted);
+	event LotteryWhitelisted(address indexed lottery, bool isWhitelisted);
     event TradingStatusUpdated(bool indexed liveTrading);
     event TradingStatusQueued(bool indexed newStatus, uint256 timestamp);
     event TradingStatusChangeCanceled();
@@ -54,6 +55,7 @@ contract MyProjectTokenFixed is ERC20Capped, ERC20Permit, ReentrancyGuard, Acces
     mapping(address => bool) private _recoverableTokens;
     mapping(address => bool) private _pendingAdmins;
     mapping(address => bool) private _whitelistedPools;
+	mapping(address => bool) private _whitelistedLotteryQst;
     struct QueuedStatusChange {
         bool newStatus;
         uint256 timestamp;
@@ -99,6 +101,9 @@ contract MyProjectTokenFixed is ERC20Capped, ERC20Permit, ReentrancyGuard, Acces
         bool isFromPool = _whitelistedPools[from];
 		bool isToPool = _whitelistedPools[to];
 		
+		bool isFromLottery = _whitelistedLotteryQst[from];
+		bool isToLottery = _whitelistedLotteryQst[to];
+		
 		require(!_paused, "This Contract is Paused"); // Add to _transfer
 		
         // Allow transfers if:
@@ -111,6 +116,13 @@ contract MyProjectTokenFixed is ERC20Capped, ERC20Permit, ReentrancyGuard, Acces
 			hasRole(ADMIN_ROLE, from) ||
 			hasRole(ADMIN_ROLE, to) ||
 			isFromPool,  // ✅ Allow buying (from pool to user)
+			"QST: transfer/trading is disabled until launch!"
+		);
+		
+		// ✅ Allow buying/claiming (from QST-Lottery)
+		// Even when LiveTrading is false.
+		require(
+			liveTrading || isToLottery || isFromLottery,
 			"QST: transfer/trading is disabled until launch!"
 		);
 		
@@ -217,10 +229,19 @@ contract MyProjectTokenFixed is ERC20Capped, ERC20Permit, ReentrancyGuard, Acces
         _whitelistedPools[pool] = isWhitelisted;
         emit PoolWhitelisted(pool, isWhitelisted);
     }
+	
+	/// @dev Admin whitelists/delists a Lottery contract.
+    /// @param lottery Address of the lottery contract (e.g., QST-Lottery).
+    /// @param isWhitelisted True to whitelist, false to remove.
+    // Add function to manage whitelisted lotteryqst.
+    function setWhitelistedLottery(address lottery, bool isWhitelisted) external onlyRole(ADMIN_ROLE) nonReentrant {
+        _whitelistedLotteryQst[lottery] = isWhitelisted;
+        emit LotteryWhitelisted(lottery, isWhitelisted);
+    }
 
-    // Add helper function to check whitelisted pools
-    function _isWhitelistedPool(address pool) internal view returns (bool) {
-        return _whitelistedPools[pool];
+    // Add helper function to check whitelisted lotteryqst
+    function _isWhitelistedLottery(address lottery) internal view returns (bool) {
+        return _whitelistedLotteryQst[lottery];
     }
 
     /// @dev Supports EIP-165 interface detection.
