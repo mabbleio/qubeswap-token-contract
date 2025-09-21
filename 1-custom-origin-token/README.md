@@ -32,11 +32,11 @@ Efficiency: Optimized for gas without sacrificing security. <br>
 ### 3: LiveTrading feature before/after official launch
 #### 3.1: Behavior Summary
 
-Scenario	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;liveTrading = true	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;liveTrading = false
+Scenario	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;liveTrading = true	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;liveTrading = false
 
-User → User			 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;❌ Blocked<br>
-User → Admin		 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed<br>
-Admin → User		 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed<br>
-Public Sale → Any	 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed (if contract whitelisted)<br>
-Pool → User (Buy)	 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed (if contract whitelisted)<br>
-User → Pool (Sell)	 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;❌ Blocked<br>
+User → User			 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;❌ Blocked<br>
+User → Admin		 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed<br>
+Admin → User		 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed<br>
+Public Sale → Any	 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed (if contract whitelisted)<br>
+Pool → User (Buy)	 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed (if contract whitelisted)<br>
+User → Pool (Sell)	 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;❌ Blocked<br>
