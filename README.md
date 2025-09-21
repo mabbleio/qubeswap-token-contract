@@ -5,9 +5,9 @@ Official QubeSwap Token [QST]
 ## Official QST Contract Addresses
 
 
-### Origin-Contract
+### Origin-Contract Address
 Qubetics Network:
-0x------
+0x7F5141a80E7399C61e328C6bCf4C69Aa01738367
 
 ### Destination-Contracts on
 BSC Network:
