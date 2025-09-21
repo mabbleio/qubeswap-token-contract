@@ -32,22 +32,11 @@ Efficiency: Optimized for gas without sacrificing security. <br>
 ### 3: LiveTrading feature before/after official launch
 #### 3.1: Behavior Summary
 
-Scenario	liveTrading = true	liveTrading = false
+Scenario	&nbsp;&nbsp;liveTrading = true	&nbsp;&nbsp;liveTrading = false
 
-User → User			 ✅ Allowed			❌ Blocked<br>
-User → Admin		 ✅ Allowed			✅ Allowed<br>
-Admin → User		 ✅ Allowed			✅ Allowed<br>
-Public Sale → Any	 ✅ Allowed			✅ Allowed (if contract whitelisted)<br>
-Pool → User (Buy)	 ✅ Allowed			✅ Allowed (if contract whitelisted)<br>
-User → Pool (Sell)	 ✅ Allowed			❌ Blocked<br>
-
-
-## II - Custom Bridge Destination Token Contract:
-
-### 1. Security & Best Practices
-
-✅ Reentrancy Protection: Uses nonReentrant on state-changing functions. <br>
-✅ Role-Based Access: Only Bridge can perform privileged actions. <br>
-✅ ECDSA Support: Uses ECDSA for bytes32. <br>
-✅ Permit Support: Enables gasless approvals (EIP-2612). <br>
-
+User → User			 &nbsp;&nbsp;✅ Allowed			&nbsp;&nbsp;❌ Blocked<br>
+User → Admin		 &nbsp;&nbsp;✅ Allowed			&nbsp;&nbsp;✅ Allowed<br>
+Admin → User		 &nbsp;&nbsp;✅ Allowed			&nbsp;&nbsp;✅ Allowed<br>
+Public Sale → Any	 &nbsp;&nbsp;✅ Allowed			&nbsp;&nbsp;✅ Allowed (if contract whitelisted)<br>
+Pool → User (Buy)	 &nbsp;&nbsp;✅ Allowed			&nbsp;&nbsp;✅ Allowed (if contract whitelisted)<br>
+User → Pool (Sell)	 &nbsp;&nbsp;✅ Allowed			&nbsp;&nbsp;❌ Blocked<br>
