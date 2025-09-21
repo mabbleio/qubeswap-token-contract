@@ -11,9 +11,9 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
 /**
- * @title OriginTokenMint - v5.0
+ * @title MyProjectTokenFixed - v5.0
  * @author Mabble Protocol (@muroko)
- * @notice OTM is a multi-chain token
+ * @notice MPT is a multi-chain token
  * @dev A custom ERC-20 token with EIP-2612 permit functionality.
  * This token contract provides a secure, feature-rich ERC-20 implementation with 
  * governance controls, trading status management, token recovery mechanisms, and 
@@ -21,7 +21,7 @@ import "@openzeppelin/contracts/utils/Address.sol";
  * @custom:security-contact security@mabble.io
  * Website: mabble.io
  */
-contract OriginTokenMint is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessControl {
+contract MyProjectTokenFixed is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessControl {
     using Address for address;
     using Address for address payable;
     using SafeERC20 for IERC20;
@@ -31,13 +31,12 @@ contract OriginTokenMint is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessCon
     bytes32 public constant RECOVERER_ROLE = keccak256("RECOVERER_ROLE");
 
     // --- Constants ---
-    string private constant _NAME = "OriginTokenMint";
-    string private constant _SYMBOL = "OTM";
+    string private constant _NAME = "MyProjectToken";
+    string private constant _SYMBOL = "MPT";
     uint8 private constant _DECIMALS = 18;
     uint256 public constant MAX_SUPPLY = 100_000_000 * 10**_DECIMALS;
 
     // --- Events ---
-    //event PoolPairWhitelisted(address indexed poolPair, bool isWhitelisted);
     event PoolWhitelisted(address indexed pool, bool isWhitelisted);
     event TradingStatusUpdated(bool indexed liveTrading);
     event TradingStatusQueued(bool indexed newStatus, uint256 timestamp);
@@ -54,16 +53,15 @@ contract OriginTokenMint is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessCon
     // --- Storage ---
     mapping(address => bool) private _recoverableTokens;
     mapping(address => bool) private _pendingAdmins;
-    //mapping(address => bool) private _whitelistedPoolPairs;
     mapping(address => bool) private _whitelistedPools;
     struct QueuedStatusChange {
         bool newStatus;
         uint256 timestamp;
     }
 
-    uint256 public constant TIMELOCK_DURATION = 0.5 hours; // trading toggle delay: 24-hour
+    uint256 public constant TIMELOCK_DURATION = 24 hours; // trading toggle delay: 24-hour
     QueuedStatusChange private _tradeableStatusChange;
-    bool public liveTrading = true; // Default: trading enabled
+    bool public liveTrading = true; // Default: transfer/trading enabled
     bool private _paused;
 
     // --- Constructor ---
@@ -210,21 +208,6 @@ contract OriginTokenMint is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessCon
         delete _pendingAdmins[msg.sender];
         emit AdminGranted(msg.sender);
     }
-
-    /// @dev Checks if an address has the ADMIN_ROLE.
-    /// @param account The address to check.
-    /// @return Whether the address has the ADMIN_ROLE.
-    /*function _isAdmin(address account) internal view returns (bool) {
-        return hasRole(ADMIN_ROLE, account);
-    }*/
-
-    /// @dev Admin whitelists/delists a trading pool pair.
-    /// @param poolPair Address of the pool contract (e.g., Uniswap pair).
-    /// @param isWhitelisted True to whitelist, false to remove.
-    /*function setWhitelistedPoolPair(address poolPair, bool isWhitelisted) external onlyRole(ADMIN_ROLE) nonReentrant {
-        _whitelistedPoolPairs[poolPair] = isWhitelisted;
-        emit PoolPairWhitelisted(poolPair, isWhitelisted);
-    }*/
 
     /// @dev Admin whitelists/delists a trading pool pair.
     /// @param pool Address of the pool contract (e.g., Uniswap pair).
