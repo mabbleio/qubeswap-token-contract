@@ -7,32 +7,22 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-/**
- * @title MyProjectTokenDT - v1.0
- * @author Mabble Protocol (@muroko)
- * @notice MPT is a multi-chain token
- * @dev A custom ERC-20 token with EIP-2612 permit functionality.
- * This token contract is designed as a Destination Token to Bridge 
- * an Origin Token on a New Chain
- * @custom:security-contact security@mabble.io
- * Website: mabble.io
- */
-contract MyProjectTokenDT is ERC20, ERC20Permit, AccessControl, ReentrancyGuard {
+contract QubeSwapTokenDT is ERC20, ERC20Permit, AccessControl, ReentrancyGuard {
     using ECDSA for bytes32;
 
     // --- Custom Errors ---
-    error MyProjectTokenDT__NotMinter();
-    error MyProjectTokenDT__ExceedsMaxSupply(uint256 currentSupply, uint256 maxSupply);
-    error MyProjectTokenDT__ZeroAddress();
-    error MyProjectTokenDT__InsufficientBalance(uint256 balance, uint256 amount);
+    error QubeSwapTokenDT__NotMinter();
+    error QubeSwapTokenDT__ExceedsMaxSupply(uint256 currentSupply, uint256 maxSupply);
+    error QubeSwapTokenDT__ZeroAddress();
+    error QubeSwapTokenDT__InsufficientBalance(uint256 balance, uint256 amount);
 
     // --- Roles ---
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BRIDGE_ROLE = keccak256("BRIDGE_ROLE");
 
     // --- Constants ---
-    string private constant _NAME = "MyProjectToken";
-    string private constant _SYMBOL = "MPT";
+    string private constant _NAME = "QubeSwapToken";
+    string private constant _SYMBOL = "QST";
     uint8 private constant _DECIMALS = 18;
     uint256 public constant MAX_SUPPLY = 100_000_000 * 10**18; // 100M tokens
 
@@ -57,11 +47,11 @@ contract MyProjectTokenDT is ERC20, ERC20Permit, AccessControl, ReentrancyGuard 
      */
     function mint(address to, uint256 amount) external nonReentrant {
         if (!hasRole(MINTER_ROLE, msg.sender) && !hasRole(BRIDGE_ROLE, msg.sender)) {
-            revert MyProjectTokenDT__NotMinter();
+            revert QubeSwapTokenDT__NotMinter();
         }
-        if (to == address(0)) revert MyProjectTokenDT__ZeroAddress();
+        if (to == address(0)) revert QubeSwapTokenDT__ZeroAddress();
         if (totalSupply() + amount > MAX_SUPPLY) {
-            revert MyProjectTokenDT__ExceedsMaxSupply(totalSupply() + amount, MAX_SUPPLY);
+            revert QubeSwapTokenDT__ExceedsMaxSupply(totalSupply() + amount, MAX_SUPPLY);
         }
         _mint(to, amount);
         emit Mint(to, amount);
@@ -74,11 +64,11 @@ contract MyProjectTokenDT is ERC20, ERC20Permit, AccessControl, ReentrancyGuard 
      */
     function burn(address from, uint256 amount) external nonReentrant {
         if (!hasRole(MINTER_ROLE, msg.sender) && !hasRole(BRIDGE_ROLE, msg.sender)) {
-            revert MyProjectTokenDT__NotMinter();
+            revert QubeSwapTokenDT__NotMinter();
         }
-        if (from == address(0)) revert MyProjectTokenDT__ZeroAddress();
+        if (from == address(0)) revert QubeSwapTokenDT__ZeroAddress();
         if (balanceOf(from) < amount) {
-            revert MyProjectTokenDT__InsufficientBalance(balanceOf(from), amount);
+            revert QubeSwapTokenDT__InsufficientBalance(balanceOf(from), amount);
         }
         _burn(from, amount);
         emit Burn(from, amount);
