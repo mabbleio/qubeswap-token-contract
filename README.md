@@ -1,18 +1,17 @@
-# Custom ERC20 Tokens Dev
-Custom ERC20 Tokens with Security Features ...
+# QubeSwap Token
+
+Official QubeSwap Token [QST]
+
+## Official QST Contract Addresses
 
 
-##
-1- Custom-Origin-Tokens <br>
-	*Option A:* A CapFixed Supply Token Contract<br>
-	*Option B:* An InitialMint Supply Token Contract<br>
+### Origin-Contract
+Qubetics Network:
+0x------
 
-2- Custom-Bridge-Destination-token <br>
-	*Bridge Destination Contract*
-
-
-
-## I - Custom Origin Tokens Contract:
+### Destination-Contracts on
+BSC Network:
+0x------
 
 ### 1. Security & Best Practices
 
@@ -28,13 +27,27 @@ a 24-hour delay with automatic execution after delay elapses. <br>
 
 
 
-## II - Custom Bridge Destination Token Contract:
+### 2. Why This Design?
 
-### 1. Security & Best Practices
 
-✅ Reentrancy Protection: Uses nonReentrant on state-changing functions. <br>
-✅ Role-Based Access: Only Bridge can perform privileged actions. <br>
-✅ ECDSA Support: Uses ECDSA for bytes32. <br>
-✅ Permit Support: Enables gasless approvals (EIP-2612). <br>
-✅ Capped Supply: Prevents inflation beyond MAX_SUPPLY. <br>
+Compliance: Capped supply + admin controls for regulatory friendliness. <br>
 
+Safety: Timelocks and pauses reduce admin risk (e.g., accidental disable). <br>
+
+Flexibility: Recovery system for user errors (e.g., sending tokens to the contract). <br>
+
+Efficiency: Optimized for gas without sacrificing security. <br>
+
+
+
+### 3: LiveTrading feature before/after official launch
+#### 3.1: Behavior Summary
+
+Scenario	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;liveTrading = true	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;liveTrading = false
+
+User → User			 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;❌ Blocked<br>
+User → Admin		 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed<br>
+Admin → User		 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed<br>
+Public Sale → Any	 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed (if contract whitelisted)<br>
+Pool → User (Buy)	 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed (if contract whitelisted)<br>
+User → Pool (Sell)	 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;✅ Allowed			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;❌ Blocked<br>
