@@ -10,25 +10,25 @@ Custom ERC20 Tokens with Security Features ....in Development
 
 ### 1. Security & Best Practices
 
-✅ Reentrancy Protection: Uses nonReentrant on state-changing functions.
-✅ Timelock for Critical Changes: Trading status changes require a 24-hour delay.
-✅ Role-Based Access: Only admins/recoverers can perform privileged actions.
-✅ Safe Transfers: Uses safeTransfer for ERC-20 recovery.
-✅ Permit Support: Enables gasless approvals (EIP-2612).
-✅ Capped Supply: Prevents inflation beyond MAX_SUPPLY.
+✅ Reentrancy Protection: Uses nonReentrant on state-changing functions. <br>
+✅ Timelock for Critical Changes: Trading status changes require a 24-hour delay. <br>
+✅ Role-Based Access: Only admins/recoverers can perform privileged actions. <br>
+✅ Safe Transfers: Uses safeTransfer for ERC-20 recovery. <br>
+✅ Permit Support: Enables gasless approvals (EIP-2612). <br>
+✅ Capped Supply: Prevents inflation beyond MAX_SUPPLY. <br>
 
 
 
 ### 2. Why This Design?
 
 
-Compliance: Capped supply + admin controls for regulatory friendliness.
+Compliance: Capped supply + admin controls for regulatory friendliness. <br>
 
-Safety: Timelocks and pauses reduce admin risk (e.g., accidental disable).
+Safety: Timelocks and pauses reduce admin risk (e.g., accidental disable). <br>
 
-Flexibility: Recovery system for user errors (e.g., sending tokens to the contract).
+Flexibility: Recovery system for user errors (e.g., sending tokens to the contract). <br>
 
-Efficiency: Optimized for gas without sacrificing security.
+Efficiency: Optimized for gas without sacrificing security. <br>
 
 
 
@@ -37,20 +37,20 @@ Efficiency: Optimized for gas without sacrificing security.
 
 Scenario	liveTrading = true	liveTrading = false
 
-User → User			 ✅ Allowed			❌ Blocked
-User → Admin		 ✅ Allowed			✅ Allowed
-Admin → User		 ✅ Allowed			✅ Allowed
-Public Sale → Any	 ✅ Allowed			✅ Allowed (if contract whitelisted)
-Pool → User (Buy)	 ✅ Allowed			✅ Allowed (if contract whitelisted)
-User → Pool (Sell)	 ✅ Allowed			❌ Blocked
+User → User			 ✅ Allowed			❌ Blocked<br>
+User → Admin		 ✅ Allowed			✅ Allowed<br>
+Admin → User		 ✅ Allowed			✅ Allowed<br>
+Public Sale → Any	 ✅ Allowed			✅ Allowed (if contract whitelisted)<br>
+Pool → User (Buy)	 ✅ Allowed			✅ Allowed (if contract whitelisted)<br>
+User → Pool (Sell)	 ✅ Allowed			❌ Blocked<br>
 
 
 ## Custom Bridge Destination Token Contract:
 
 ### 1. Security & Best Practices
 
-✅ Reentrancy Protection: Uses nonReentrant on state-changing functions.
-✅ Role-Based Access: Only Bridge can perform privileged actions.
-✅ ECDSA Support: Uses ECDSA for bytes32.
-✅ Permit Support: Enables gasless approvals (EIP-2612).
+✅ Reentrancy Protection: Uses nonReentrant on state-changing functions. <br>
+✅ Role-Based Access: Only Bridge can perform privileged actions. <br>
+✅ ECDSA Support: Uses ECDSA for bytes32. <br>
+✅ Permit Support: Enables gasless approvals (EIP-2612). <br>
 
