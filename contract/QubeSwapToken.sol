@@ -11,17 +11,17 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
 /**
- * @title MyProjectTokenMint - v5.0
+ * @title QubeSwapToken - v5.0
  * @author Mabble Protocol (@muroko)
- * @notice MPT is a multi-chain token
+ * @notice QST is a multi-chain token
  * @dev A custom ERC-20 token with EIP-2612 permit functionality.
  * This token contract provides a secure, feature-rich ERC-20 implementation with 
  * governance controls, trading status management, token recovery mechanisms, and 
  * gasless approvals.
  * @custom:security-contact security@mabble.io
- * Website: mabble.io
+ * Website: qubeswap.com
  */
-contract OriginTokenMint is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessControl {
+contract MyProjectTokenFixed is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessControl {
     using Address for address;
     using Address for address payable;
     using SafeERC20 for IERC20;
@@ -31,8 +31,8 @@ contract OriginTokenMint is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessCon
     bytes32 public constant RECOVERER_ROLE = keccak256("RECOVERER_ROLE");
 
     // --- Constants ---
-    string private constant _NAME = "MyProjectTokenMint";
-    string private constant _SYMBOL = "MPT";
+    string private constant _NAME = "QubeSwapToken";
+    string private constant _SYMBOL = "QST";
     uint8 private constant _DECIMALS = 18;
     uint256 public constant MAX_SUPPLY = 100_000_000 * 10**_DECIMALS;
 
@@ -70,11 +70,12 @@ contract OriginTokenMint is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessCon
         _grantRole(RECOVERER_ROLE, msg.sender);
         _useNonce(msg.sender); // Initialize nonce for permit
 
-        // Initial mint (e.g., 50M tokens to deployer)
-        uint256 initialMint = 50_000_000 * 10**_DECIMALS;
-        require(initialMint <= MAX_SUPPLY, "Initial mint exceeds cap");
-        _mint(msg.sender, initialMint);
-        emit Mint(msg.sender, initialMint);  // Optional: Custom event for clarity
+        uint256 amount;
+        // Fixed Cap Supply Mint
+        uint256 capMint = MAX_SUPPLY;
+        require(totalSupply() + amount <= cap(), "Exceeds cap");
+        _mint(msg.sender, capMint);
+        emit Mint(msg.sender, capMint);  // Optional: Custom event for clarity
     }
 
     modifier whenNotPaused() {
@@ -123,13 +124,6 @@ contract OriginTokenMint is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessCon
         // Use ERC20's _transfer to handle balances (avoids direct state manipulation)
         super._update(from, to, value);  // ✅ ERC20 handles balances
 	}
-
-    function safeMint(address to, uint256 amount) external onlyRole(ADMIN_ROLE) { // Removed nonReentrant
-        require(totalSupply() + amount <= cap(), "Mint exceeds cap");
-        require(to != address(0), "Cannot mint to zero address");
-        _mint(to, amount);
-        emit Mint(to, amount);
-    }
 
     // --- Trading Control ---
     /// @notice Queues a change to trading status (enabled/disabled).
