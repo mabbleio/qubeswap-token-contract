@@ -11,9 +11,9 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
 /**
- * @title OriginTokenMint - v4.7
+ * @title MyProjectTokenMint - v5.0
  * @author Mabble Protocol (@muroko)
- * @notice OTM is a multi-chain token
+ * @notice MPT is a multi-chain token
  * @dev A custom ERC-20 token with EIP-2612 permit functionality.
  * This token contract provides a secure, feature-rich ERC-20 implementation with 
  * governance controls, trading status management, token recovery mechanisms, and 
@@ -31,13 +31,12 @@ contract OriginTokenMint is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessCon
     bytes32 public constant RECOVERER_ROLE = keccak256("RECOVERER_ROLE");
 
     // --- Constants ---
-    string private constant _NAME = "OriginTokenMint";
-    string private constant _SYMBOL = "OTM";
+    string private constant _NAME = "MyProjectTokenMint";
+    string private constant _SYMBOL = "MPT";
     uint8 private constant _DECIMALS = 18;
     uint256 public constant MAX_SUPPLY = 100_000_000 * 10**_DECIMALS;
 
     // --- Events ---
-    //event PoolPairWhitelisted(address indexed poolPair, bool isWhitelisted);
     event PoolWhitelisted(address indexed pool, bool isWhitelisted);
     event TradingStatusUpdated(bool indexed liveTrading);
     event TradingStatusQueued(bool indexed newStatus, uint256 timestamp);
@@ -54,16 +53,15 @@ contract OriginTokenMint is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessCon
     // --- Storage ---
     mapping(address => bool) private _recoverableTokens;
     mapping(address => bool) private _pendingAdmins;
-    //mapping(address => bool) private _whitelistedPoolPairs;
     mapping(address => bool) private _whitelistedPools;
     struct QueuedStatusChange {
         bool newStatus;
         uint256 timestamp;
     }
 
-    uint256 public constant TIMELOCK_DURATION = 0.5 hours; // trading toggle delay: 24-hour
+    uint256 public constant TIMELOCK_DURATION = 24 hours; // trading toggle delay: 24-hour
     QueuedStatusChange private _tradeableStatusChange;
-    bool public liveTrading = true; // Default: trading enabled
+    bool public liveTrading = true; // Default: transfer/trading enabled
     bool private _paused;
 
     // --- Constructor ---
@@ -80,7 +78,7 @@ contract OriginTokenMint is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessCon
     }
 
     modifier whenNotPaused() {
-        require(!_paused, "Paused");
+        require(!_paused, "This Contract is Paused");
         _;
     }
 
@@ -96,36 +94,35 @@ contract OriginTokenMint is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessCon
         uint256 value
     ) internal virtual override(ERC20, ERC20Capped) {
         _checkTradeableStatus();  // Check trading status before transfer
-        bool isToPool = _whitelistedPools[to];
-        // Block transfers TO admins when trading is disabled
-        bool isToAdmin = _isAdmin(to);
-        bool isFromAdmin = _isAdmin(from);
-        require(from != address(0), "QST: transfer from the zero address");
-        require(to != address(0), "QST: transfer to the zero address");
-        require(!_paused, "Paused"); // Add to _transfer
+		
+        bool isFromPool = _whitelistedPools[from];
+		bool isToPool = _whitelistedPools[to];
+		
+		require(!_paused, "This Contract is Paused"); // Add to _transfer
+		
         // Allow transfers if:
-        // 1. Trading is live, OR
-        // 2. Transfer is from an admin (admins can always send), OR
-        // 3. Transfer is to a whitelisted pool (buying) and not to an admin
-        require(
-            liveTrading ||
-            isFromAdmin,    // Admins can always send tokens
-            "QST: transfer is disabled"
-        );
-        // Additional check: Block transfers TO admins if trading is disabled
-        require(
-            liveTrading || !isToAdmin,
-            "QST: cannot transfer to admin while trading is disabled"
-        );
-        // Allow buying (to pool) ONLY if trading is disabled
-        require(
-            liveTrading ||
-            (!liveTrading && isToPool),
-            "QST: transfer is disabled"
-        );
+		// 1. Trading is live, OR
+		// 2. Transfer is from/to an admin, OR
+		// 3. Transfer is FROM a whitelisted pool (buying), OR
+		// 4. Transfer is TO a whitelisted pool (but block selling)
+		require(
+			liveTrading ||
+			hasRole(ADMIN_ROLE, from) ||
+			hasRole(ADMIN_ROLE, to) ||
+			isFromPool,  // ✅ Allow buying (from pool to user)
+			"QST: transfer/trading is disabled until launch!"
+		);
+		
+        // Block transfers TO whitelisted pools if not from a pool 
+		// (prevent selling) if liveTrading is false
+		require(
+			liveTrading || !isToPool || isFromPool,
+			"QST: Selling disabled until launch!"
+		);
+		
         // Use ERC20's _transfer to handle balances (avoids direct state manipulation)
         super._update(from, to, value);  // ✅ ERC20 handles balances
-    }
+	}
 
     function safeMint(address to, uint256 amount) external onlyRole(ADMIN_ROLE) { // Removed nonReentrant
         require(totalSupply() + amount <= cap(), "Mint exceeds cap");
@@ -217,21 +214,6 @@ contract OriginTokenMint is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessCon
         delete _pendingAdmins[msg.sender];
         emit AdminGranted(msg.sender);
     }
-
-    /// @dev Checks if an address has the ADMIN_ROLE.
-    /// @param account The address to check.
-    /// @return Whether the address has the ADMIN_ROLE.
-    function _isAdmin(address account) internal view returns (bool) {
-        return hasRole(ADMIN_ROLE, account);
-    }
-
-    /// @dev Admin whitelists/delists a trading pool pair.
-    /// @param poolPair Address of the pool contract (e.g., Uniswap pair).
-    /// @param isWhitelisted True to whitelist, false to remove.
-    /*function setWhitelistedPoolPair(address poolPair, bool isWhitelisted) external onlyRole(ADMIN_ROLE) nonReentrant {
-        _whitelistedPoolPairs[poolPair] = isWhitelisted;
-        emit PoolPairWhitelisted(poolPair, isWhitelisted);
-    }*/
 
     /// @dev Admin whitelists/delists a trading pool pair.
     /// @param pool Address of the pool contract (e.g., Uniswap pair).
