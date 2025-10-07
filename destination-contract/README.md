@@ -1,7 +1,7 @@
 # QubeSwapToken Bridge Destination Token Contract:
 	*Bridge Destination Contract*
 
-QubeSwapTokenDT is the Bridge Destination Contract 
+QubeSwapTokenDest is the Bridge Destination Contract 
 of QST on a New Chain.
 
 QST is a multi-chain token
@@ -38,7 +38,7 @@ Compatibility: Align with common bridge patterns (e.g., LayerZero, Axelar, or cu
 
 Deploy the Token:
 
-Deploy QubeSwapTokenDT on the destination chain.
+Deploy QubeSwapTokenDest on the destination chain.
 
 Call grantBridgeRole(bridgeAddress) to authorize the bridge contract.
 
