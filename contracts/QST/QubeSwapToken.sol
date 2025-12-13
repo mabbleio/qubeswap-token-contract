@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
 /**
- * @title QubeSwapToken - v5.5
+ * @title QubeSwapToken - v5.6
  * @author Mabble Protocol (@muroko)
  * @notice QST is a multi-chain token
  * @dev A custom ERC-20 token with EIP-2612 permit functionality.
@@ -252,5 +252,5 @@ contract QubeSwapToken is ERC20Capped, ERC20Permit, ReentrancyGuard, AccessContr
             interfaceId == type(IERC20Metadata).interfaceId ||  // ERC-20 Metadata
             interfaceId == type(IERC20Permit).interfaceId ||  // ERC-20 Permit
             super.supportsInterface(interfaceId);  // AccessControl (ERC-165)
-    }   
+    }
 }
