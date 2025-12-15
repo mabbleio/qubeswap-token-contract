@@ -4,7 +4,7 @@ Wrapped QST | on Multi-chains
 ## XQST Addresses:
 
 #### On SEI:
-0x
+0x40FA695BD3098356e3C3a5DcEDB967e85a2C478B
 
 #### On BSC:
 0x
