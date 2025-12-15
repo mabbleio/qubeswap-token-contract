@@ -7,20 +7,20 @@ Official QubeSwap Token [QST]
 
 ### QubeSwapToken-Contract Address
 Sei Network:<br>
-0x
+0x9393139435CeF1c490118e83C33A05EF2E71Fdc6
 
 ### PegQubeSwapToken-Contracts
 BSC Network:<br>
-0x
+0x9393139435CeF1c490118e83C33A05EF2E71Fdc6
 
 Qubetics Network:<br>
-0x
+0x9393139435CeF1c490118e83C33A05EF2E71Fdc6
 
 Avalanche Network:<br>
-0x
+0x9393139435CeF1c490118e83C33A05EF2E71Fdc6
 
 Ethereum Network:<br>
-0x
+0x9393139435CeF1c490118e83C33A05EF2E71Fdc6
 
 
 
